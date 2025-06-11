@@ -1,24 +1,21 @@
-# Recipe Finder App
+# My Recipe Finder Project
 
-A web application that helps you find recipes based on ingredients you have at home.
+This is my first web development project for my programming class. It helps people find recipes based on ingredients they have.
 
 ## Features
 - Search recipes by ingredients
-- Filter by diet type and cooking time
-- Save favorite recipes
-- Weekly meal planner
-- Responsive design for all devices
+- Filter by diet type
+- Responsive design works on phones and computers
+
+## How to Use
+1. Type ingredients you have (like "chicken rice")
+2. Click "Search"
+3. View recipes and click to see full instructions
 
 ## Technologies Used
-- HTML5, CSS3, JavaScript (Frontend)
-- Python with Flask (Backend)
-- Edamam API (Recipe data)
+- HTML, CSS, JavaScript
+- Python with Flask (for local development)
+- Edamam API for recipe data
 
-## Setup Instructions
-1. Clone this repository
-2. Install requirements: `pip install -r requirements.txt`
-3. Create a `.env` file with your Edamam API credentials
-4. Run the app: `python app.py`
-
-## Live Demo
-[https://maryoritm.github.io/recipe-finder/](https://maryoritm.github.io/recipe-finder/)
+## Running Locally
+1. Install Python requirements:

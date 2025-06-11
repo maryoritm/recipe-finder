@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Finder</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Open+Sans&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <header>
+        <h1>Recipe Finder</h1>
+        <div class="search-container">
+            <input type="text" id="ingredient-input" placeholder="Enter ingredients...">
+            <button id="search-btn">Search</button>
+        </div>
+        <div class="filters">
+            <select id="diet-filter">
+                <option value="">All Diets</option>
+                <option value="balanced">Balanced</option>
+                <option value="low-carb">Low-Carb</option>
+                <option value="vegetarian">Vegetarian</option>
+            </select>
+        </div>
+    </header>
+
+    <main>
+        <div id="results-container"></div>
+        <div id="meal-planner" class="hidden">
+            <h2>Weekly Meal Plan</h2>
+            <div class="week-days"></div>
+        </div>
+    </main>
+
+    <script src="/static/script.js"></script>
+</body>
+
+</html>

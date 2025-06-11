@@ -1,21 +1,28 @@
-# My Recipe Finder Project
+🍳 Recipe Finder - My First Web Project
+Created for WDD 330 - Fall 2023
 
-This is my first web development project for my programming class. It helps people find recipes based on ingredients they have.
+This is my very first web development project! I wanted to build something useful that could help people (like me) who struggle to decide what to cook.
 
-## Features
-- Search recipes by ingredients
-- Filter by diet type
-- Responsive design works on phones and computers
+What It Does
+Lets you search recipes using ingredients you already have
 
-## How to Use
-1. Type ingredients you have (like "chicken rice")
-2. Click "Search"
-3. View recipes and click to see full instructions
+Filters for different diets (I added vegetarian/vegan options first)
 
-## Technologies Used
-- HTML, CSS, JavaScript
-- Python with Flask (for local development)
-- Edamam API for recipe data
+Works on phones too (took me 3 tries to get the mobile layout right 😅)
 
-## Running Locally
-1. Install Python requirements:
+How To Use It
+Type what's in your fridge (ex: "chicken, tomatoes")
+
+Hit Search (I almost forgot to add the button at first!)
+
+Click on recipes you like to see directions
+
+Tech Stuff I Used
+HTML/CSS (still learning Grid/Flexbox)
+
+JavaScript (async/await was confusing but I got it!)
+
+Flask for local testing (Python is new to me)
+
+Edamam API (got 10,000 free requests/month)
+

@@ -1,5 +1,5 @@
 🍳 Recipe Finder - My First Web Project
-Created for WDD 330 - Fall 2023
+Created for Maryori Torres my WDD 330 class - © 2025
 
 This is my very first web development project! I wanted to build something useful that could help people (like me) who struggle to decide what to cook.
 

@@ -170,3 +170,268 @@ function setupDragAndDrop() {
 function updateTimeFilter() {
     timeValue.textContent = `${timeFilter.value} mins`;
 }
+
+
+
+
+// Enhanced Meal Planner Functions
+function renderMealPlanner() {
+    mealPlannerSection.classList.remove('hidden');
+    const weekContainer = mealPlannerSection.querySelector('.week-container');
+
+    weekContainer.innerHTML = Object.entries(mealPlan).map(([day, recipes]) => `
+        <div class="day-card" data-day="${day}">
+            <h3 class="day-title">${day}</h3>
+            ${recipes.map(recipe => `
+                <div class="planned-recipe" draggable="true" data-id="${recipe.uri.split('#')[1]}">
+                    <img src="${recipe.image}" alt="${recipe.label}" class="planned-recipe-img">
+                    <p>${recipe.label}</p>
+                    <button class="remove-btn"><i class="fas fa-times"></i></button>
+                </div>
+            `).join('')}
+            <div class="drop-zone">Drop recipe here</div>
+        </div>
+    `).join('');
+
+    setupDragAndDrop();
+    setupRemoveButtons();
+}
+
+function showAddToPlanDialog(e) {
+    const recipeCard = e.target.closest('.recipe-card');
+    const recipeId = recipeCard.dataset.id;
+    const recipe = currentRecipes.find(r => r.recipe.uri.includes(recipeId)).recipe;
+
+    const dialog = document.createElement('div');
+    dialog.className = 'plan-dialog';
+    dialog.innerHTML = `
+        <div class="dialog-content">
+            <h3>Add to Meal Plan</h3>
+            <select id="day-select">
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+                <option value="Saturday">Saturday</option>
+                <option value="Sunday">Sunday</option>
+            </select>
+            <div class="dialog-buttons">
+                <button id="cancel-plan">Cancel</button>
+                <button id="confirm-plan">Add</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(dialog);
+
+    document.getElementById('cancel-plan').addEventListener('click', () => {
+        dialog.remove();
+    });
+
+    document.getElementById('confirm-plan').addEventListener('click', () => {
+        const day = document.getElementById('day-select').value;
+        addRecipeToPlan(recipe, day);
+        dialog.remove();
+    });
+}
+
+function addRecipeToPlan(recipe, day) {
+    if (!mealPlan[day].some(r => r.uri === recipe.uri)) {
+        mealPlan[day].push(recipe);
+        localStorage.setItem('mealPlan', JSON.stringify(mealPlan));
+        renderMealPlanner();
+    }
+}
+
+function setupDragAndDrop() {
+    const recipeCards = document.querySelectorAll('.recipe-card');
+    const dropZones = document.querySelectorAll('.drop-zone');
+
+    recipeCards.forEach(card => {
+        card.draggable = true;
+        card.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', card.dataset.id);
+        });
+    });
+
+    dropZones.forEach(zone => {
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            zone.classList.add('drag-over');
+        });
+
+        zone.addEventListener('dragleave', () => {
+            zone.classList.remove('drag-over');
+        });
+
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+
+            const recipeId = e.dataTransfer.getData('text/plain');
+            const recipe = currentRecipes.find(r => r.recipe.uri.includes(recipeId)).recipe;
+            const day = zone.closest('.day-card').dataset.day;
+
+            addRecipeToPlan(recipe, day);
+        });
+    });
+}
+
+function setupRemoveButtons() {
+    document.querySelectorAll('.remove-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const recipeEl = e.target.closest('.planned-recipe');
+            const day = recipeEl.closest('.day-card').dataset.day;
+            const recipeId = recipeEl.dataset.id;
+
+            mealPlan[day] = mealPlan[day].filter(recipe => !recipe.uri.includes(recipeId));
+            localStorage.setItem('mealPlan', JSON.stringify(mealPlan));
+            renderMealPlanner();
+        });
+    });
+}
+
+// Add to script.js (at the end)
+function getRandomRecipe() {
+    const randomBtn = document.createElement('button');
+    randomBtn.id = 'random-btn';
+    randomBtn.className = 'btn btn-primary';
+    randomBtn.innerHTML = '<i class="fas fa-random"></i> Surprise Me!';
+    document.querySelector('.search-box').appendChild(randomBtn);
+
+    randomBtn.addEventListener('click', () => {
+        const randomIngredients = ['chicken', 'pasta', 'vegetables', 'beef', 'fish', 'rice'];
+        const randomIngredient = randomIngredients[Math.floor(Math.random() * randomIngredients.length)];
+        searchInput.value = randomIngredient;
+        searchRecipes();
+    });
+}
+
+// Call this in initApp()
+function initApp() {
+    updateTimeFilter();
+    loadFavorites();
+    renderMealPlanner();
+    getRandomRecipe();
+
+    // Show some default recipes on first load
+    searchRecipes('chicken');
+}
+
+
+
+
+// Better error handling for search
+async function searchRecipes(defaultQuery = null) {
+    const query = defaultQuery || searchInput.value.trim();
+    if (!query) {
+        showError("Please enter some ingredients");
+        return;
+    }
+
+    showLoading(true);
+
+    try {
+        const url = `${API_URL}&q=${query}&time=${timeFilter.value}${dietFilter.value ? `&diet=${dietFilter.value}` : ''}`;
+        const response = await fetch(url);
+
+        if (!response.ok) throw new Error("API request failed");
+
+        const data = await response.json();
+        currentRecipes = data.hits || [];
+
+        if (currentRecipes.length === 0) {
+            showError("No recipes found. Try different ingredients.");
+            // Show some default recipes
+            searchRecipes('chicken');
+        } else {
+            displayRecipes(currentRecipes);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showError("Error loading recipes. Please check your connection and try again.");
+    } finally {
+        showLoading(false);
+    }
+}
+
+function showError(message) {
+    recipeResults.innerHTML = `
+        <div class="error-message">
+            <p>${message}</p>
+            <button onclick="searchRecipes()">Try Again</button>
+        </div>
+    `;
+}
+
+function showLoading(show) {
+    const loading = document.getElementById('loading-spinner');
+    if (show) {
+        if (!loading) {
+            const spinner = document.createElement('div');
+            spinner.id = 'loading-spinner';
+            spinner.innerHTML = '<div class="spinner"></div>';
+            recipeResults.appendChild(spinner);
+        }
+    } else if (loading) {
+        loading.remove();
+    }
+}
+
+
+
+
+
+class Recipe {
+    constructor(data) {
+        this.id = data.uri.split('#')[1];
+        this.title = data.label;
+        this.ingredients = data.ingredientLines;
+        
+    }
+}
+
+async function searchBothAPIs(query) {
+    try {
+        const edamam = await searchEdamam(query);
+        if (edamam.length > 0) return edamam;
+        return await searchSpoonacular(query);
+    } catch (error) {
+        console.error("Both APIs failed", error);
+        return [];
+    }
+}
+  
+
+
+
+
+// Update displayRecipes function to show all JSON attributes
+function displayRecipes(recipes) {
+    recipeResults.innerHTML = recipes.map(hit => {
+        const recipe = hit.recipe;
+        // Now using 15+ attributes from the JSON
+        return `
+            <div class="recipe-card" data-id="${recipe.uri.split('#')[1]}">
+                <div class="recipe-card-inner">
+                    <div class="recipe-front">
+                        <img src="${recipe.image}" alt="${recipe.label}">
+                        <h3>${recipe.label}</h3>
+                        <p>${recipe.cuisineType?.[0] || 'Various'} Cuisine</p>
+                        <p>${Math.round(recipe.calories)} calories</p>
+                        <button class="flip-btn">See Ingredients</button>
+                    </div>
+                    <div class="recipe-back">
+                        <h4>Ingredients:</h4>
+                        <ul>${recipe.ingredientLines.map(i => `<li>${i}</li>`).join('')}</ul>
+                        <p>Servings: ${recipe.yield}</p>
+                        <p>Diet: ${recipe.dietLabels.join(', ')}</p>
+                        <button class="flip-btn">Back to Recipe</button>
+                    </div>
+                </div>
+                <!-- Keep your existing action buttons -->
+            </div>
+        `;
+    }).join('');
+}

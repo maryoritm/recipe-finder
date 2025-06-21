@@ -9,8 +9,8 @@ const mealPlannerSection = document.getElementById('meal-planner');
 const favoritesSection = document.getElementById('favorites');
 
 // API Configuration
-const APP_ID = '335addd8'; 
-const APP_KEY = '149c4d9a0591ba45a41d9d7138080054'; 
+const APP_ID = '335addd8';
+const APP_KEY = '58f37b72af3540ac35a564c3fd959a29';
 const API_URL = `https://api.edamam.com/search?app_id=${APP_ID}&app_key=${APP_KEY}`;
 
 // Global Variables
@@ -34,65 +34,97 @@ function initApp() {
     updateTimeFilter();
     loadFavorites();
     renderMealPlanner();
+    getRandomRecipe();
 
     // Show some default recipes on first load
     searchRecipes('chicken');
 }
 
-// Search Recipes Function
+// Search Recipes Function - UPDATED
 async function searchRecipes(defaultQuery = null) {
     const query = defaultQuery || searchInput.value.trim();
-    if (!query) return;
+    if (!query) {
+        showError("Please enter some ingredients");
+        return;
+    }
 
-    const diet = dietFilter.value;
-    const time = timeFilter.value;
+    showLoading(true);
+    recipeResults.innerHTML = ''; // Clear previous results
 
     try {
-        const url = `${API_URL}&q=${query}&time=${time}${diet ? `&diet=${diet}` : ''}`;
-        const response = await fetch(url);
-        const data = await response.json();
+        const diet = dietFilter.value;
+        const time = timeFilter.value;
+        const url = `${API_URL}&q=${encodeURIComponent(query)}&time=${time}${diet ? `&diet=${diet}` : ''}`;
 
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+        const data = await response.json();
         currentRecipes = data.hits || [];
-        displayRecipes(currentRecipes);
+
+        if (currentRecipes.length === 0) {
+            showError("No recipes found. Try different ingredients.");
+        } else {
+            displayRecipes(currentRecipes);
+        }
     } catch (error) {
-        console.error('Error fetching recipes:', error);
-        recipeResults.innerHTML = `<p class="error">Error loading recipes. Please try again.</p>`;
+        console.error('Search error:', error);
+        showError("Error loading recipes. Please try again.");
+    } finally {
+        showLoading(false);
     }
 }
 
-// Display Recipes
+// Display Recipes - UPDATED
 function displayRecipes(recipes) {
     if (recipes.length === 0) {
-        recipeResults.innerHTML = `<p>No recipes found. Try different ingredients.</p>`;
+        recipeResults.innerHTML = `<p class="empty-state">No recipes found. Try different ingredients.</p>`;
         return;
     }
 
     recipeResults.innerHTML = recipes.map(recipe => `
         <div class="recipe-card" data-id="${recipe.recipe.uri.split('#')[1]}">
-            <img src="${recipe.recipe.image}" alt="${recipe.recipe.label}" class="recipe-img">
-            <div class="recipe-info">
-                <h3 class="recipe-title">${recipe.recipe.label}</h3>
-                <div class="recipe-meta">
-                    <span><i class="fas fa-clock"></i> ${recipe.recipe.totalTime || 'N/A'} mins</span>
-                    <span><i class="fas fa-fire"></i> ${Math.round(recipe.recipe.calories)} calories</span>
+            <div class="recipe-card-inner">
+                <div class="recipe-front">
+                    <img src="${recipe.recipe.image}" alt="${recipe.recipe.label}" class="recipe-img">
+                    <h3 class="recipe-title">${recipe.recipe.label}</h3>
+                    <div class="recipe-meta">
+                        <span><i class="fas fa-clock"></i> ${recipe.recipe.totalTime || 'N/A'} mins</span>
+                        <span><i class="fas fa-fire"></i> ${Math.round(recipe.recipe.calories)} calories</span>
+                    </div>
+                    <button class="flip-btn">See Details</button>
                 </div>
-                <div class="recipe-actions">
-                    <button class="btn btn-primary add-to-plan">Add to Plan</button>
-                    <button class="btn btn-outline favorite-btn">
-                        <i class="${isFavorite(recipe.recipe.uri) ? 'fas' : 'far'} fa-heart"></i> Favorite
-                    </button>
+                <div class="recipe-back">
+                    <h4>Ingredients:</h4>
+                    <ul>${recipe.recipe.ingredientLines.map(i => `<li>${i}</li>`).join('')}</ul>
+                    <p>Servings: ${recipe.recipe.yield}</p>
+                    <p>Diet: ${recipe.recipe.dietLabels.join(', ') || 'None specified'}</p>
+                    <button class="flip-btn">Back to Recipe</button>
                 </div>
+            </div>
+            <div class="recipe-actions">
+                <button class="btn btn-primary add-to-plan">Add to Plan</button>
+                <button class="btn btn-outline favorite-btn">
+                    <i class="${isFavorite(recipe.recipe.uri) ? 'fas' : 'far'} fa-heart"></i> Favorite
+                </button>
             </div>
         </div>
     `).join('');
 
-    // Add event listeners to new buttons
+    // Add event listeners
     document.querySelectorAll('.favorite-btn').forEach(btn => {
         btn.addEventListener('click', toggleFavorite);
     });
 
     document.querySelectorAll('.add-to-plan').forEach(btn => {
         btn.addEventListener('click', showAddToPlanDialog);
+    });
+
+    document.querySelectorAll('.flip-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const card = e.target.closest('.recipe-card');
+            card.classList.toggle('flipped');
+        });
     });
 }
 
@@ -113,10 +145,11 @@ function toggleFavorite(e) {
     }
 
     localStorage.setItem('favorites', JSON.stringify(favorites));
+    loadFavorites(); // Refresh favorites display
 }
 
 function isFavorite(recipeUri) {
-    return favorites.some(fav => fav.uri === recipeUri);
+    return favorites.some(fav => fav.uri === recipe.uri);
 }
 
 function loadFavorites() {
@@ -124,7 +157,7 @@ function loadFavorites() {
         favoritesSection.classList.remove('hidden');
         const favoritesContainer = favoritesSection.querySelector('.favorites-container');
         favoritesContainer.innerHTML = favorites.map(recipe => `
-            <div class="recipe-card">
+            <div class="recipe-card" data-id="${recipe.uri.split('#')[1]}">
                 <img src="${recipe.image}" alt="${recipe.label}" class="recipe-img">
                 <div class="recipe-info">
                     <h3>${recipe.label}</h3>
@@ -132,49 +165,12 @@ function loadFavorites() {
                 </div>
             </div>
         `).join('');
+    } else {
+        favoritesSection.classList.add('hidden');
     }
 }
 
 // Meal Planner Functions
-function renderMealPlanner() {
-    mealPlannerSection.classList.remove('hidden');
-    const weekContainer = mealPlannerSection.querySelector('.week-container');
-
-    weekContainer.innerHTML = Object.entries(mealPlan).map(([day, recipes]) => `
-        <div class="day-card" data-day="${day}">
-            <h3 class="day-title">${day}</h3>
-            ${recipes.map(recipe => `
-                <div class="planned-recipe">
-                    <p>${recipe.label}</p>
-                    <button class="remove-btn"><i class="fas fa-times"></i></button>
-                </div>
-            `).join('')}
-            <div class="drop-zone">Drop recipe here</div>
-        </div>
-    `).join('');
-
-    setupDragAndDrop();
-}
-
-function showAddToPlanDialog(e) {
-    // Implementation for adding to meal plan
-    console.log('Add to plan clicked');
-}
-
-function setupDragAndDrop() {
-    // Implementation for drag and drop functionality
-    console.log('Setting up drag and drop');
-}
-
-// Helper Functions
-function updateTimeFilter() {
-    timeValue.textContent = `${timeFilter.value} mins`;
-}
-
-
-
-
-// Enhanced Meal Planner Functions
 function renderMealPlanner() {
     mealPlannerSection.classList.remove('hidden');
     const weekContainer = mealPlannerSection.querySelector('.week-container');
@@ -292,7 +288,7 @@ function setupRemoveButtons() {
     });
 }
 
-// Add to script.js (at the end)
+// Random Recipe Function
 function getRandomRecipe() {
     const randomBtn = document.createElement('button');
     randomBtn.id = 'random-btn';
@@ -308,59 +304,16 @@ function getRandomRecipe() {
     });
 }
 
-// Call this in initApp()
-function initApp() {
-    updateTimeFilter();
-    loadFavorites();
-    renderMealPlanner();
-    getRandomRecipe();
-
-    // Show some default recipes on first load
-    searchRecipes('chicken');
-}
-
-
-
-
-// Better error handling for search
-async function searchRecipes(defaultQuery = null) {
-    const query = defaultQuery || searchInput.value.trim();
-    if (!query) {
-        showError("Please enter some ingredients");
-        return;
-    }
-
-    showLoading(true);
-
-    try {
-        const url = `${API_URL}&q=${query}&time=${timeFilter.value}${dietFilter.value ? `&diet=${dietFilter.value}` : ''}`;
-        const response = await fetch(url);
-
-        if (!response.ok) throw new Error("API request failed");
-
-        const data = await response.json();
-        currentRecipes = data.hits || [];
-
-        if (currentRecipes.length === 0) {
-            showError("No recipes found. Try different ingredients.");
-            // Show some default recipes
-            searchRecipes('chicken');
-        } else {
-            displayRecipes(currentRecipes);
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        showError("Error loading recipes. Please check your connection and try again.");
-    } finally {
-        showLoading(false);
-    }
+// Helper Functions
+function updateTimeFilter() {
+    timeValue.textContent = `${timeFilter.value} mins`;
 }
 
 function showError(message) {
     recipeResults.innerHTML = `
         <div class="error-message">
             <p>${message}</p>
-            <button onclick="searchRecipes()">Try Again</button>
+            <button class="btn btn-primary" onclick="searchRecipes()">Try Again</button>
         </div>
     `;
 }
@@ -379,59 +332,11 @@ function showLoading(show) {
     }
 }
 
-
-
-
-
+// Recipe Class
 class Recipe {
     constructor(data) {
         this.id = data.uri.split('#')[1];
         this.title = data.label;
         this.ingredients = data.ingredientLines;
-        
     }
-}
-
-async function searchBothAPIs(query) {
-    try {
-        const edamam = await searchEdamam(query);
-        if (edamam.length > 0) return edamam;
-        return await searchSpoonacular(query);
-    } catch (error) {
-        console.error("Both APIs failed", error);
-        return [];
-    }
-}
-  
-
-
-
-
-// Update displayRecipes function to show all JSON attributes
-function displayRecipes(recipes) {
-    recipeResults.innerHTML = recipes.map(hit => {
-        const recipe = hit.recipe;
-        // Now using 15+ attributes from the JSON
-        return `
-            <div class="recipe-card" data-id="${recipe.uri.split('#')[1]}">
-                <div class="recipe-card-inner">
-                    <div class="recipe-front">
-                        <img src="${recipe.image}" alt="${recipe.label}">
-                        <h3>${recipe.label}</h3>
-                        <p>${recipe.cuisineType?.[0] || 'Various'} Cuisine</p>
-                        <p>${Math.round(recipe.calories)} calories</p>
-                        <button class="flip-btn">See Ingredients</button>
-                    </div>
-                    <div class="recipe-back">
-                        <h4>Ingredients:</h4>
-                        <ul>${recipe.ingredientLines.map(i => `<li>${i}</li>`).join('')}</ul>
-                        <p>Servings: ${recipe.yield}</p>
-                        <p>Diet: ${recipe.dietLabels.join(', ')}</p>
-                        <button class="flip-btn">Back to Recipe</button>
-                    </div>
-                </div>
-                <!-- Keep your existing action buttons -->
-            </div>
-        `;
-    }).join('');
 }
